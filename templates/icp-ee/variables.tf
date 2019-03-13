@@ -9,6 +9,11 @@ variable "key_name" {
   default = []
 }
 
+variable "private_key_path" {
+  description = "path of above SSH private key to provision IBM Cloud instances with"
+  default = ""
+}
+
 ##### Common VM specifications ######
 # Provide values for these in terraform.tfvars
 variable "datacenter" { }
@@ -19,7 +24,7 @@ variable "private_vlan_router_hostname" {
 }
 
 variable "private_vlan_number" {
-   default = -1
+   default = -1 
    description = "Private VLAN number to place all VMs on.  e.g. 1211. See Network > IP Management > VLANs in the portal. Leave blank to let the system choose."
 }
 
@@ -85,7 +90,7 @@ variable "master" {
     disk_size         = "100" // GB
     docker_vol_size   = "100" // GB
     local_disk        = false
-
+    install_disk_size = "300"
     network_speed     = "1000"
 
     hourly_billing = true
@@ -162,6 +167,7 @@ variable "worker" {
     disk_size         = "100" // GB
     docker_vol_size   = "100" // GB
     local_disk  = false
+    data_disk_size    = "300"
 
     network_speed= "1000"
 
@@ -204,7 +210,7 @@ variable "icppassword" {
 
 variable "icp_inception_image" {
   description = "ICP image to use for installation"
-  default     = "ibmcom/icp-inception-amd64:3.1.0-ee"
+  default     = "ibmcom/icp-inception-amd64:3.1.2-ee"
 }
 
 variable "registry_username" {

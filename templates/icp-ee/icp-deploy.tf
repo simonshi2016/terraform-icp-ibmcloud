@@ -51,11 +51,17 @@ resource "null_resource" "image_load" {
   }
 }
 
+locals {
+    master_lb="${ibm_lbaas.master-lbaas.vip}"
+    proxy_lb="${ibm_lbaas.proxy-lbaas.vip}"
+    cluster_domain="${ibm_lbaas.master-lbaas.vip}"
+    ssh_keypath="/opt/ibm/scripts/ssh_key"
+}
 ##################################
 ### Deploy ICP to cluster
 ##################################
 module "icpprovision" {
-    source = "github.com/ibm-cloud-architecture/terraform-module-icp-deploy.git?ref=2.3.5"
+    source = "github.com/ibm-cloud-architecture/terraform-module-icp-deploy.git?ref=3.0.2"
 
     # Provide IP addresses for boot, master, mgmt, va, proxy and workers
     boot-node = "${ibm_compute_vm_instance.icp-boot.ipv4_address_private}"
@@ -69,8 +75,8 @@ module "icpprovision" {
     }
 
     # Provide desired ICP version to provision
-    icp-version = "${var.icp_inception_image}"
-
+#    icp-version = "${var.icp_inception_image}"
+    icp-inception = "${var.icp_inception_image}"
     /* Workaround for terraform issue #10857
      When this is fixed, we can work this out automatically */
     cluster_size  = "${1 + var.master["nodes"] + var.worker["nodes"] + var.proxy["nodes"] + var.mgmt["nodes"] + var.va["nodes"]}"
@@ -112,6 +118,12 @@ module "icpprovision" {
 
     # Make sure to wait for image load to complete
     hooks = {
+      "cluster-preconfig" = ["echo No hook"]
+      "cluster-postconfig" = ["echo No hook"]
+      "preinstall" = [
+	"sudo bash /opt/ibm/scripts/generate_wdp_conf.sh ${local.master_lb} ${local.proxy_lb} ${local.cluster_domain} ${local.ssh_keypath}"
+      ]
+      "postinstall" = ["echo No hook"]
       "boot-preconfig" = [
         "while [ ! -f /opt/ibm/.imageload_complete ]; do sleep 5; done"
       ]

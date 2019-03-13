@@ -111,6 +111,32 @@ EOF
     destination = "${local.docker_package_uri != "" ? "${local.docker_package_uri}" : "/dev/null" }"
   }
 
+  provisioner "file" {
+    # copy the local docker installation package if it's set
+    connection {
+      host          = "${self.ipv4_address_private}"
+      user          = "root"
+      private_key   = "${file(var.private_key_path)}"
+      bastion_host  = "${var.private_network_only ? ibm_compute_vm_instance.icp-boot.ipv4_address_private : ibm_compute_vm_instance.icp-boot.ipv4_address}"
+    }
+
+    source = "${path.module}/scripts/generate_wdp_conf.sh"
+    destination = "/opt/ibm/scripts/generate_wdp_conf.sh"
+  }
+
+    provisioner "file" {
+    # copy the local docker installation package if it's set
+    connection {
+      host          = "${self.ipv4_address_private}"
+      user          = "root"
+      private_key   = "${file(var.private_key_path)}"
+      bastion_host  = "${var.private_network_only ? ibm_compute_vm_instance.icp-boot.ipv4_address_private : ibm_compute_vm_instance.icp-boot.ipv4_address}"
+    }
+
+    source = "${var.private_key_path}"
+    destination = "/opt/ibm/scripts/ssh_key"
+  }
+
   notes = "Boot machine for ICP deployment"
 
   lifecycle {
@@ -141,7 +167,8 @@ resource "ibm_compute_vm_instance" "icp-master" {
   local_disk = "${var.master["local_disk"]}"
   disks = [
     "${var.master["disk_size"]}",
-    "${var.master["docker_vol_size"]}"
+    "${var.master["docker_vol_size"]}",
+    "${var.master["install_disk_size"]}"
   ]
 
   # Virtual IP uses a secondary IP on public interface
@@ -190,6 +217,14 @@ write_files:
     permissions: '600'
     encoding: b64
     content: ${base64encode("${tls_self_signed_cert.registry_cert.cert_pem}")}
+  - path: /opt/ibm/scripts/part_disk.sh
+    permissions: '0755'
+    encoding: b64
+    content: ${base64encode(file("${path.module}/scripts/part_disk.sh"))}
+  - path: /opt/ibm/scripts/ssh_key
+    permissions: '0600'
+    encoding: b64
+    content: ${base64encode(file("${var.private_key_path}"))}
 mounts:
 ${var.master["nodes"] > 1 ? "
   - ['${ibm_storage_file.fs_registry.mountpoint}', /var/lib/registry, nfs, defaults, 0, 0]
@@ -205,6 +240,7 @@ runcmd:
   - echo '${ibm_storage_file.fs_audit.mountpoint} /var/lib/icp/audit nfs defaults 0 0' | tee -a /etc/fstab
   - sudo mount -a
   - echo '${ibm_compute_vm_instance.icp-boot.ipv4_address_private} ${var.deployment}-boot-${random_id.clusterid.hex}.${var.domain}' >> /etc/hosts
+  - /opt/ibm/scripts/part_disk.sh /ibm /dev/xvde
 EOF
 
   # Permit an ssh loging for the key owner.
@@ -592,7 +628,8 @@ resource "ibm_compute_vm_instance" "icp-worker" {
   local_disk = "${var.worker["local_disk"]}"
   disks = [
     "${var.worker["disk_size"]}",
-    "${var.worker["docker_vol_size"]}"
+    "${var.worker["docker_vol_size"]}",
+    "${var.worker["data_disk_size"]}"
   ]
 
   hourly_billing = "${var.worker["hourly_billing"]}"
@@ -624,9 +661,14 @@ write_files:
     permissions: '600'
     encoding: b64
     content: ${base64encode("${tls_self_signed_cert.registry_cert.cert_pem}")}
+  - path: /opt/ibm/scripts/part_disk.sh
+    permissions: '0755'
+    encoding: b64
+    content: ${base64encode(file("${path.module}/scripts/part_disk.sh"))}
 runcmd:
   - /opt/ibm/scripts/bootstrap.sh -u icpdeploy ${local.docker_package_uri != "" ? "-p ${local.docker_package_uri}" : "" } -d /dev/xvdc
   - echo '${ibm_compute_vm_instance.icp-boot.ipv4_address_private} ${var.deployment}-boot-${random_id.clusterid.hex}.${var.domain}' >> /etc/hosts
+  - /opt/ibm/scripts/part_disk.sh /data /dev/xvde
 EOF
 
   # Permit an ssh loging for the key owner.
@@ -668,3 +710,4 @@ EOF
     ]
   }
 }
+

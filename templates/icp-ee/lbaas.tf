@@ -67,6 +67,13 @@ resource "ibm_lbaas" "master-lbaas" {
 
       backend_protocol = "TCP"
       backend_port = 9443
+    },
+    {
+      frontend_protocol = "TCP"
+      frontend_port = 31843
+
+      backend_protocol = "TCP"
+      backend_port = 31843
     }
   ]
 }

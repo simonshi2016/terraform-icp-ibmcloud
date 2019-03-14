@@ -120,10 +120,10 @@ module "icpprovision" {
     hooks = {
       "cluster-preconfig" = ["echo No hook"]
       "cluster-postconfig" = ["echo No hook"]
-      "preinstall" = [
-	"sudo bash /opt/ibm/scripts/generate_wdp_conf.sh ${local.master_lb} ${local.proxy_lb} ${local.cluster_domain} ${local.ssh_keypath}"
+      "preinstall" = ["echo No hook"]
+      "postinstall" = [
+      	"sudo bash /opt/ibm/scripts/generate_wdp_conf.sh ${local.master_lb} ${local.proxy_lb} ${local.cluster_domain} ${local.ssh_keypath}"
       ]
-      "postinstall" = ["echo No hook"]
       "boot-preconfig" = [
         "while [ ! -f /opt/ibm/.imageload_complete ]; do sleep 5; done"
       ]
